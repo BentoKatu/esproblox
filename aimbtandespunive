@@ -1,0 +1,377 @@
+-- Universal Roblox Suite - ESP + Aimbot Para Todos os Jogos
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Configurações Universais
+local Universal = {
+    MenuKey = Enum.KeyCode.Insert,
+    
+    ESP = {
+        Enabled = true,
+        TeamCheck = false,
+        ShowNames = true,
+        ShowBoxes = true,
+        ShowDistance = true,
+        ShowHealth = true,
+        MaxDistance = 500,
+        AllyColor = Color3.fromRGB(0, 255, 0),
+        EnemyColor = Color3.fromRGB(255, 0, 0)
+    },
+    
+    Aimbot = {
+        Enabled = false,
+        TeamCheck = false,
+        Smoothness = 0.3,
+        FOV = 100,
+        AimKey = Enum.KeyCode.Q,
+        TargetPart = "Head"
+    }
+}
+
+-- Sistema de Menu Universal
+local MenuGui = Instance.new("ScreenGui")
+MenuGui.Name = "UniversalSuite"
+MenuGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+MainFrame.BackgroundTransparency = 0.05
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = MenuGui
+
+-- Header do Menu
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "UNIVERSAL ROBLOX SUITE"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 14
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Parent = Header
+
+-- Área de Conteúdo
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -20, 1, -50)
+ContentFrame.Position = UDim2.new(0, 10, 0, 50)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- Função para criar opções
+local function CreateOption(text, configCategory, configValue, yPosition)
+    local optionFrame = Instance.new("Frame")
+    optionFrame.Size = UDim2.new(1, 0, 0, 30)
+    optionFrame.Position = UDim2.new(0, 0, 0, yPosition)
+    optionFrame.BackgroundTransparency = 1
+    optionFrame.Parent = ContentFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 0, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = optionFrame
+    
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 60, 0, 25)
+    toggle.Position = UDim2.new(0.7, 0, 0, 2)
+    toggle.BackgroundColor3 = Universal[configCategory][configValue] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    toggle.Text = Universal[configCategory][configValue] and "ON" or "OFF"
+    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggle.TextSize = 12
+    toggle.Font = Enum.Font.GothamBold
+    toggle.Parent = optionFrame
+    
+    toggle.MouseButton1Click:Connect(function()
+        Universal[configCategory][configValue] = not Universal[configCategory][configValue]
+        toggle.BackgroundColor3 = Universal[configCategory][configValue] and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+        toggle.Text = Universal[configCategory][configValue] and "ON" or "OFF"
+    end)
+    
+    return yPosition + 35
+end
+
+-- Criar todas as opções
+local yPos = 0
+yPos = CreateOption("ESP", "ESP", "Enabled", yPos)
+yPos = CreateOption("Team Check ESP", "ESP", "TeamCheck", yPos)
+yPos = CreateOption("Show Names", "ESP", "ShowNames", yPos)
+yPos = CreateOption("Show Boxes", "ESP", "ShowBoxes", yPos)
+yPos = CreateOption("Show Distance", "ESP", "ShowDistance", yPos)
+yPos = CreateOption("Show Health", "ESP", "ShowHealth", yPos)
+
+yPos = yPos + 10  -- Espaçamento
+
+yPos = CreateOption("Aimbot", "Aimbot", "Enabled", yPos)
+yPos = CreateOption("Team Check Aimbot", "Aimbot", "TeamCheck", yPos)
+
+-- Sistema ESP Universal
+local ESPObjects = {}
+
+function CreateESP(player)
+    if ESPObjects[player] then return end
+    
+    local esp = {
+        box = Drawing.new("Square"),
+        name = Drawing.new("Text"),
+        distance = Drawing.new("Text"),
+        health = Drawing.new("Text")
+    }
+    
+    esp.box.Thickness = 2
+    esp.box.Filled = false
+    
+    esp.name.Size = 14
+    esp.name.Outline = true
+    esp.name.Center = true
+    
+    esp.distance.Size = 12
+    esp.distance.Outline = true
+    esp.distance.Center = true
+    
+    esp.health.Size = 12
+    esp.health.Outline = true
+    esp.health.Center = true
+    
+    ESPObjects[player] = esp
+end
+
+function UpdateESP()
+    for player, esp in pairs(ESPObjects) do
+        if not Universal.ESP.Enabled then
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.distance.Visible = false
+            esp.health.Visible = false
+            goto continue
+        end
+        
+        local character = player.Character
+        if not character then
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.distance.Visible = false
+            esp.health.Visible = false
+            goto continue
+        end
+        
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        
+        if not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.distance.Visible = false
+            esp.health.Visible = false
+            goto continue
+        end
+        
+        local position, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+        local distance = (humanoidRootPart.Position - Camera.CFrame.Position).Magnitude
+        
+        if onScreen and distance <= Universal.ESP.MaxDistance then
+            local color = Universal.ESP.EnemyColor
+            if Universal.ESP.TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                color = Universal.ESP.AllyColor
+            end
+            
+            local scale = 1000 / distance
+            
+            -- Caixa
+            if Universal.ESP.ShowBoxes then
+                esp.box.Size = Vector2.new(4 * scale, 6 * scale)
+                esp.box.Position = Vector2.new(position.X - (4 * scale)/2, position.Y - (6 * scale)/2)
+                esp.box.Color = color
+                esp.box.Visible = true
+            else
+                esp.box.Visible = false
+            end
+            
+            -- Nome
+            if Universal.ESP.ShowNames then
+                esp.name.Position = Vector2.new(position.X, position.Y - (6 * scale)/2 - 20)
+                esp.name.Text = player.Name
+                esp.name.Color = color
+                esp.name.Visible = true
+            else
+                esp.name.Visible = false
+            end
+            
+            -- Distância
+            if Universal.ESP.ShowDistance then
+                esp.distance.Position = Vector2.new(position.X, position.Y + (6 * scale)/2 + 5)
+                esp.distance.Text = string.format("[%dm]", math.floor(distance))
+                esp.distance.Color = color
+                esp.distance.Visible = true
+            else
+                esp.distance.Visible = false
+            end
+            
+            -- Saúde
+            if Universal.ESP.ShowHealth then
+                esp.health.Position = Vector2.new(position.X, position.Y + (6 * scale)/2 + 25)
+                esp.health.Text = string.format("HP: %d", math.floor(humanoid.Health))
+                esp.health.Color = color
+                esp.health.Visible = true
+            else
+                esp.health.Visible = false
+            end
+            
+        else
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.distance.Visible = false
+            esp.health.Visible = false
+        end
+        
+        ::continue::
+    end
+end
+
+-- Sistema Aimbot Universal
+local AimbotTarget = nil
+
+function FindAimbotTarget()
+    if not Universal.Aimbot.Enabled then return nil end
+    
+    local closestTarget = nil
+    local closestDistance = Universal.Aimbot.FOV
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then goto continue end
+        
+        if Universal.Aimbot.TeamCheck and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            goto continue
+        end
+        
+        local character = player.Character
+        if not character then goto continue end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local targetPart = character:FindFirstChild(Universal.Aimbot.TargetPart)
+        
+        if humanoid and humanoid.Health > 0 and targetPart then
+            local screenPosition, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            
+            if onScreen then
+                local mousePosition = UserInputService:GetMouseLocation()
+                local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePosition).Magnitude
+                
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestTarget = targetPart
+                end
+            end
+        end
+        
+        ::continue::
+    end
+    
+    return closestTarget
+end
+
+function AimAtTarget(target)
+    if not target then return end
+    
+    local targetPosition = target.Position
+    local cameraPosition = Camera.CFrame.Position
+    local direction = (targetPosition - cameraPosition).Unit
+    
+    local currentCFrame = Camera.CFrame
+    local goalCFrame = CFrame.lookAt(cameraPosition, cameraPosition + direction)
+    
+    local smoothness = Universal.Aimbot.Smoothness
+    local smoothedCFrame = currentCFrame:Lerp(goalCFrame, smoothness)
+    
+    Camera.CFrame = smoothedCFrame
+end
+
+-- Inicialização Universal
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        CreateESP(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if ESPObjects[player] then
+        for _, drawing in pairs(ESPObjects[player]) do
+            drawing:Remove()
+        end
+        ESPObjects[player] = nil
+    end
+end)
+
+-- Controles
+CloseButton.MouseButton1Click:Connect(function()
+    Universal.Menu.Visible = false
+    MainFrame.Visible = false
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+    -- Menu com Insert
+    if input.KeyCode == Universal.MenuKey then
+        MainFrame.Visible = not MainFrame.Visible
+    
+    -- Aimbot com Q
+    elseif input.KeyCode == Universal.Aimbot.AimKey then
+        AimbotTarget = FindAimbotTarget()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Universal.Aimbot.AimKey then
+        AimbotTarget = nil
+    end
+end)
+
+-- Loop Principal
+RunService.RenderStepped:Connect(function()
+    pcall(UpdateESP)
+    
+    if AimbotTarget and Universal.Aimbot.Enabled then
+        pcall(function()
+            AimAtTarget(AimbotTarget)
+        end)
+    end
+end)
+
+print("🎯 UNIVERSAL ROBLOX SUITE CARREGADO!")
+print("📱 INSERT - Abrir/Fechar Menu (Arrastável)")
+print("🎯 Q - Aimbot (Segure para usar)")
+print("🌍 Funciona em TODOS os jogos Roblox!")
