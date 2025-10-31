@@ -1,0 +1,248 @@
+-- Arsenal Suite - ESP Bom + Aimbot Funcional + Menu Movel
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Configurações
+local Config = {
+    ESP = true,
+    Aimbot = false,
+    TeamCheck = true,
+    AimKey = Enum.KeyCode.Q
+}
+
+-- Menu Movel e Minimizável
+local MenuGui = Instance.new("ScreenGui")
+MenuGui.Parent = game.CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 250, 0, 150)
+MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = MenuGui
+
+-- Header com botão minimizar
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 25)
+Header.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -30, 1, 0)
+Title.Position = UDim2.new(0, 5, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Arsenal Suite"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+MinimizeBtn.Position = UDim2.new(1, -25, 0, 0)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+MinimizeBtn.Text = "_"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 16
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = Header
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, 0, 1, -25)
+ContentFrame.Position = UDim2.new(0, 0, 0, 25)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- Botões do Menu
+local function AddButton(text, yPos, configName)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
+    btn.BackgroundColor3 = Config[configName] and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(180, 0, 0)
+    btn.Text = text .. ": " .. (Config[configName] and "ON" or "OFF")
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 13
+    btn.Font = Enum.Font.Gotham
+    btn.Parent = ContentFrame
+    
+    btn.MouseButton1Click:Connect(function()
+        Config[configName] = not Config[configName]
+        btn.BackgroundColor3 = Config[configName] and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(180, 0, 0)
+        btn.Text = text .. ": " .. (Config[configName] and "ON" or "OFF")
+    end)
+end
+
+AddButton("ESP", 5, "ESP")
+AddButton("Aimbot", 40, "Aimbot")
+AddButton("Team Check", 75, "TeamCheck")
+
+-- ESP BOM (igual ao primeiro que funcionou)
+local function SimpleESP()
+    if not Config.ESP then return end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        
+        local character = player.Character
+        if not character then continue end
+        
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if not humanoidRootPart then continue end
+        
+        -- Criar ou atualizar ESP
+        local espGui = humanoidRootPart:FindFirstChild("SimpleESP")
+        if not espGui then
+            espGui = Instance.new("BillboardGui")
+            espGui.Name = "SimpleESP"
+            espGui.Size = UDim2.new(0, 100, 0, 40)
+            espGui.AlwaysOnTop = true
+            espGui.Adornee = humanoidRootPart
+            espGui.MaxDistance = 300
+            espGui.Parent = humanoidRootPart
+            
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.TextSize = 14
+            textLabel.Font = Enum.Font.GothamBold
+            textLabel.Parent = espGui
+        end
+        
+        -- Atualizar cor e texto
+        local textLabel = espGui:FindFirstChild("TextLabel")
+        if textLabel then
+            local color = Color3.new(1, 0, 0) -- Vermelho
+            if Config.TeamCheck and player.Team == LocalPlayer.Team then
+                color = Color3.new(0, 1, 0) -- Verde
+            end
+            
+            textLabel.Text = player.Name
+            textLabel.TextColor3 = color
+            textLabel.Visible = true
+        end
+    end
+end
+
+-- AIMBOT FUNCIONAL (corrigido)
+local AimbotTarget = nil
+local AimbotActive = false
+
+function FindAimbotTarget()
+    if not Config.Aimbot then return nil end
+    
+    local closestTarget = nil
+    local closestDistance = 9999
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        if Config.TeamCheck and player.Team == LocalPlayer.Team then continue end
+        
+        local character = player.Character
+        if not character then continue end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        local head = character:FindFirstChild("Head")
+        
+        if humanoid and humanoid.Health > 0 and head then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+            
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestTarget = head
+                end
+            end
+        end
+    end
+    
+    return closestTarget
+end
+
+function AimAtTarget(target)
+    if not target then return end
+    
+    local targetPosition = target.Position
+    local cameraPosition = Camera.CFrame.Position
+    
+    -- Direção para o alvo
+    local direction = (targetPosition - cameraPosition).Unit
+    
+    -- Calcular nova rotação da câmera
+    local lookVector = cameraPosition + direction
+    local newCFrame = CFrame.lookAt(cameraPosition, lookVector)
+    
+    -- Aplicar suavidade
+    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, 0.7)
+end
+
+-- Minimizar/Maximizar menu
+local Minimized = false
+local OriginalSize = MainFrame.Size
+local OriginalPosition = MainFrame.Position
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    if Minimized then
+        -- Maximizar
+        MainFrame.Size = OriginalSize
+        ContentFrame.Visible = true
+        MinimizeBtn.Text = "_"
+        Minimized = false
+    else
+        -- Minimizar
+        OriginalSize = MainFrame.Size
+        OriginalPosition = MainFrame.Position
+        MainFrame.Size = UDim2.new(0, 150, 0, 25)
+        ContentFrame.Visible = false
+        MinimizeBtn.Text = "□"
+        Minimized = true
+    end
+end)
+
+-- Controles
+UserInputService.InputBegan:Connect(function(input)
+    -- Menu com RightShift
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    
+    -- Aimbot com Q
+    elseif input.KeyCode == Config.AimKey then
+        AimbotTarget = FindAimbotTarget()
+        AimbotActive = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Config.AimKey then
+        AimbotTarget = nil
+        AimbotActive = false
+    end
+end)
+
+-- Loop principal
+RunService.Heartbeat:Connect(function()
+    -- ESP (funciona sempre)
+    pcall(SimpleESP)
+    
+    -- Aimbot (só quando ativo)
+    if AimbotActive and Config.Aimbot and AimbotTarget then
+        pcall(function()
+            AimAtTarget(AimbotTarget)
+        end)
+    end
+end)
+
+print("✅ Arsenal Suite Carregado!")
+print("🎮 RightShift - Abrir Menu (arrasta e minimiza)")
+print("🎯 Q - Aimbot (segure para usar)")
+print("🔧 ESP sempre funcional quando ativado")
