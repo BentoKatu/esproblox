@@ -1,0 +1,95 @@
+--[[
+ESP Simples com Team Check
+Por: ChatGPT
+Uso autorizado para testes.
+]]
+
+-- Configurações
+local ESP_COLOR = Color3.fromRGB(255, 0, 0) -- Cor padrão (vermelho para inimigos)
+local FRIEND_COLOR = Color3.fromRGB(0, 255, 0) -- Cor para aliados (verde)
+local ESP_ENABLED = true
+
+-- Função para criar a interface do ESP
+local function createUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ESP_Interface"
+    ScreenGui.Parent = game.CoreGui
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 200, 0, 60)
+    Frame.Position = UDim2.new(0, 10, 0, 10)
+    Frame.BackgroundTransparency = 0.4
+    Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Frame.Parent = ScreenGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Text = "ESP TESTE"
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.BackgroundTransparency = 1
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.SourceSansBold
+    Title.TextSize = 20
+    Title.Parent = Frame
+
+    local Toggle = Instance.new("TextButton")
+    Toggle.Text = "ESP: ON"
+    Toggle.Size = UDim2.new(1, 0, 0, 30)
+    Toggle.Position = UDim2.new(0, 0, 0, 30)
+    Toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Toggle.Font = Enum.Font.SourceSans
+    Toggle.TextSize = 18
+    Toggle.Parent = Frame
+
+    Toggle.MouseButton1Click:Connect(function()
+        ESP_ENABLED = not ESP_ENABLED
+        Toggle.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
+    end)
+end
+
+-- Função de desenho do ESP
+local function DrawESP()
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position)
+            if onScreen and ESP_ENABLED then
+                -- Team Check
+                local color = ESP_COLOR
+                if player.Team == game.Players.LocalPlayer.Team then
+                    color = FRIEND_COLOR
+                end
+
+                -- Cria um marcador na tela (exemplo simples)
+                local Billboard = Instance.new("BillboardGui")
+                Billboard.Name = "ESP_Marker"
+                Billboard.Adornee = hrp
+                Billboard.Size = UDim2.new(0, 100, 0, 40)
+                Billboard.AlwaysOnTop = true
+                Billboard.Parent = game.CoreGui
+
+                local Text = Instance.new("TextLabel")
+                Text.Size = UDim2.new(1, 0, 1, 0)
+                Text.BackgroundTransparency = 1
+                Text.Text = player.Name
+                Text.TextColor3 = color
+                Text.TextStrokeTransparency = 0
+                Text.TextSize = 16
+                Text.Parent = Billboard
+
+                -- Remove o marcador após um curto período para evitar duplicatas
+                delay(0.1, function()
+                    Billboard:Destroy()
+                end)
+            end
+        end
+    end
+end
+
+-- Inicializa a interface
+createUI()
+
+-- Loop principal do ESP
+game:GetService("RunService").RenderStepped:Connect(function()
+    pcall(DrawESP)
+end)
